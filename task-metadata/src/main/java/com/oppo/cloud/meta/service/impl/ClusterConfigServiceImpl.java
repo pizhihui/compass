@@ -19,21 +19,24 @@ package com.oppo.cloud.meta.service.impl;
 import com.alibaba.fastjson2.JSON;
 import com.oppo.cloud.common.constant.Constant;
 import com.oppo.cloud.common.domain.cluster.hadoop.YarnConf;
-import com.oppo.cloud.common.domain.cluster.yarn.ClusterInfo;
 import com.oppo.cloud.common.service.RedisService;
 import com.oppo.cloud.common.util.YarnUtil;
 import com.oppo.cloud.meta.config.HadoopConfig;
-import com.oppo.cloud.meta.domain.YarnPathInfo;
 import com.oppo.cloud.meta.domain.Properties;
 import com.oppo.cloud.meta.domain.YarnConfProperties;
+import com.oppo.cloud.meta.domain.YarnPathInfo;
 import com.oppo.cloud.meta.service.IClusterConfigService;
+import com.oppo.cloud.meta.utils.XMLFileTool;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.dom4j.Document;
+import org.dom4j.Element;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +56,7 @@ public class ClusterConfigServiceImpl implements IClusterConfigService {
 
     @Resource(name = "restTemplate")
     private RestTemplate restTemplate;
-    
+
     private static final String YARN_CONF = "http://%s/conf";
 
     private static final String DEFAULT_FS = "fs.defaultFS";
@@ -154,8 +157,12 @@ public class ClusterConfigServiceImpl implements IClusterConfigService {
         try {
             yarnConfProperties = JSON.parseObject(responseEntity.getBody(), YarnConfProperties.class);
         } catch (Exception e) {
-            log.error("Exception:", e);
-            return null;
+            log.warn("parse yarn conf json error, retry by xml format, error: {}", e.getMessage());
+            List<Properties> propertiesList = getPropertiesByXml(responseEntity);
+            if (null == propertiesList || propertiesList.size() == 0) {
+                return null;
+            }
+            yarnConfProperties.setProperties(propertiesList);
         }
 
         String remoteDir = "";
@@ -214,6 +221,28 @@ public class ClusterConfigServiceImpl implements IClusterConfigService {
         yarnPathInfo.setMapreduceIntermediateDoneDir(mapreduceIntermediateDoneDir);
         log.info("yarnPathInfo: {}, {}", url, yarnPathInfo);
         return yarnPathInfo;
+    }
+
+    private static List<Properties> getPropertiesByXml(ResponseEntity<String> responseEntity) {
+        Document document;
+        try {
+            document = XMLFileTool.XMLFileReader.loadXMLFile(responseEntity.getBody());
+        } catch (Exception e) {
+            log.error("parse yarn conf xml error: ", e);
+            return null;
+        }
+        Element root = document.getRootElement();
+        List<Properties> propertiesList = new ArrayList<>();
+        for (Element element : root.elements()) {
+            String name = element.element("name").getTextTrim();
+            String value = element.element("value").getTextTrim();
+
+            Properties ps = new Properties();
+            ps.setKey(name);
+            ps.setValue(value);
+            propertiesList.add(ps);
+        }
+        return propertiesList;
     }
 
 

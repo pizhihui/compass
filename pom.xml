@@ -70,6 +70,7 @@
         <spotless.version>2.27.2</spotless.version>
         <elasticsearch.version>7.17.9</elasticsearch.version>
         <java-jwt.version>4.2.2</java-jwt.version>
+        <dom4j.version>2.1.4</dom4j.version>
 
         <!--Vulnerability version fixes-->
         <velocity.version>1.7</velocity.version>
@@ -352,6 +353,12 @@
                 <groupId>org.elasticsearch</groupId>
                 <artifactId>elasticsearch</artifactId>
                 <version>${elasticsearch.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.dom4j</groupId>
+                <artifactId>dom4j</artifactId>
+                <version>${dom4j.version}</version>
             </dependency>
 
             <!--Vulnerability version fixes-->
